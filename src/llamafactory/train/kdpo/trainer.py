@@ -32,7 +32,7 @@ from ...extras.constants import IGNORE_INDEX
 from ...extras.packages import is_transformers_version_greater_than
 from ..callbacks import SaveProcessorCallback
 from ..trainer_utils import create_custom_optimizer, create_custom_scheduler, get_batch_logps, nested_detach
-from ktransformers.dpo.trainer import KTDporainer
+from ktransformers.dpo.trainer import KTDpoTrainer
 
 
 if TYPE_CHECKING:
@@ -41,7 +41,7 @@ if TYPE_CHECKING:
     from ...hparams import FinetuningArguments
 
 
-class CustomDPOTrainer(KTDporainer):
+class CustomDPOTrainer(KTDpoTrainer):
     def __init__(
         self,
         model: Union["PreTrainedModel", torch.nn.Module],
