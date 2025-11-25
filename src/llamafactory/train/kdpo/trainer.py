@@ -208,33 +208,6 @@ class CustomDPOTrainer(KTDpoTrainer):
 
         return losses, chosen_rewards, rejected_rewards
 
-    @override
-    def concatenated_forward(
-        self, model: "PreTrainedModel", batch: dict[str, "torch.Tensor"], is_ref_model: bool = False
-    ) -> tuple["torch.Tensor", "torch.Tensor", "torch.Tensor", "torch.Tensor", "torch.Tensor"]:
-        r"""Compute the sum log probabilities of the labels under given logits if loss_type is not IPO, ORPO or SimPO.
-
-        Otherwise the average log probabilities.
-        """
-        if self.finetuning_args.use_ref_model:
-            batch = nested_detach(batch, clone=True)  # avoid error
-
-        all_logits: torch.Tensor = model(**batch, return_dict=True, use_cache=False).logits.to(torch.float32)
-        all_logps, valid_length = get_batch_logps(
-            logits=all_logits, labels=batch["labels"], ld_alpha=(self.ld_alpha if not is_ref_model else None)
-        )
-        if self.loss_type in ["ipo", "orpo", "simpo"]:
-            all_logps = all_logps / valid_length
-
-        batch_size = batch["input_ids"].size(0) // 2
-        chosen_logps, rejected_logps = all_logps.split(batch_size, dim=0)
-        chosen_logits, rejected_logits = all_logits.split(batch_size, dim=0)
-        chosen_length, _ = valid_length.split(batch_size, dim=0)
-
-        if self.loss_type in ["ipo", "orpo", "simpo"]:
-            return chosen_logps, rejected_logps, chosen_logits, rejected_logits, chosen_logps
-        else:
-            return chosen_logps, rejected_logps, chosen_logits, rejected_logits, chosen_logps / chosen_length
 
     @override
     def compute_reference_log_probs(

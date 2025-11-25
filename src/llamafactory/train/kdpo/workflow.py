@@ -78,6 +78,7 @@ def run_dpo(
         **dataset_module,
         **tokenizer_module,
     )
+    trainer.model_accepts_loss_kwargs = False
 
     # Training
     if training_args.do_train:
