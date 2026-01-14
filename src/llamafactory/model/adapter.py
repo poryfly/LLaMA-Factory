@@ -220,9 +220,12 @@ def _setup_lora_tuning(
         if model_args.use_kt:
             new_list = []
             for m in target_modules:
-                if m in ("down_proj", "up_proj", "gate_proj"):
-                    new_list.extend([f"mlp.{m}", f"shared_experts.{m}"])
-                elif m not in ("generate_linear", "orig_module", "prefill_linear"):
+                # if m in ("down_proj", "up_proj", "gate_proj"):
+                #     new_list.extend([f"mlp.{m}", f"shared_experts.{m}"])
+                # elif m not in ("generate_linear", "orig_module", "prefill_linear"):
+                #     new_list.append(m)
+                # for support route-moe
+                if m not in ("generate_linear", "orig_module", "prefill_linear"):
                     new_list.append(m)
 
             target_modules[:] = new_list

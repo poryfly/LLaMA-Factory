@@ -48,7 +48,8 @@ def run_dpo(
 
     from ktransformers.util.globals import GLOBAL_CONFIG
 
-    GLOBAL_CONFIG._config["mod"] = "train"
+    # sft just for adapter other main kt
+    GLOBAL_CONFIG._config["mod"] = "sft"
 
     data_collator = PairwiseDataCollatorWithPadding(
         template=template,
