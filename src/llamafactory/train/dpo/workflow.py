@@ -21,6 +21,7 @@ from ...data import PairwiseDataCollatorWithPadding, get_dataset, get_template_a
 from ...extras.constants import IGNORE_INDEX
 from ...extras.misc import calculate_tps
 from ...extras.ploting import plot_loss
+from ...extras.packages import is_transformers_version_greater_than
 from ...hparams import ModelArguments
 from ...model import load_model, load_tokenizer
 from ..trainer_utils import create_modelcard_and_push, create_ref_model
@@ -29,7 +30,7 @@ from ..trainer_utils import create_modelcard_and_push, create_ref_model
 if TYPE_CHECKING:
     from transformers import Seq2SeqTrainingArguments, TrainerCallback
 
-    from ...hparams import DataArguments, FinetuningArguments
+    from ...hparams import DataArguments, FinetuningArguments, GeneratingArguments, ModelArguments
 
 
 def run_dpo(
@@ -53,6 +54,12 @@ def run_dpo(
         **tokenizer_module,
     )
 
+    if model_args.use_kt:
+        if training_args.predict_with_generate:
+            raise NotImplementedError("`predict_with_generate` is not supported in KTransformers SFT yet.")
+        elif finetuning_args.compute_accuracy:
+            raise NotImplementedError("`compute_accuracy` is not supported in KTransformers SFT yet.")
+        
     # Create reference model
     if finetuning_args.use_ref_model:
         if finetuning_args.ref_model is None and (not training_args.do_train):  # use the model itself
@@ -62,19 +69,37 @@ def run_dpo(
     else:
         ref_model = None
 
-    from .trainer import CustomDPOTrainer
 
-    # Initialize our Trainer
-    trainer = CustomDPOTrainer(
-        model=model,
-        ref_model=ref_model,
-        args=training_args,
-        finetuning_args=finetuning_args,
-        data_collator=data_collator,
-        callbacks=callbacks,
-        **dataset_module,
-        **tokenizer_module,
-    )
+    if model_args.use_kt:
+        # KTransformers MoE backend - handles MoE layers with CPU AMX
+        from .kt_trainer import create_kt_trainer
+
+        trainer = create_kt_trainer(
+            model=model,
+            ref_model=ref_model,
+            training_args=training_args,
+            finetuning_args=finetuning_args,
+            model_args=model_args,
+            data_collator=data_collator,
+            callbacks=callbacks,
+            **dataset_module,
+            **tokenizer_module,
+        )
+    else:
+
+        from .trainer import CustomDPOTrainer
+
+        # Initialize our Trainer
+        trainer = CustomDPOTrainer(
+            model=model,
+            ref_model=ref_model,
+            args=training_args,
+            finetuning_args=finetuning_args,
+            data_collator=data_collator,
+            callbacks=callbacks,
+            **dataset_module,
+            **tokenizer_module,
+        )
 
     # Training
     if training_args.do_train:
