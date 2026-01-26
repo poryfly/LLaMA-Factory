@@ -221,6 +221,8 @@ class CustomDPOTrainer(DPOTrainer):
 
         labels = batch.pop("labels")  # dpo do not need compute loss in forward
         all_logits: torch.Tensor = model(**batch, return_dict=True, use_cache=False).logits.to(torch.float32)
+        all_logits = all_logits.to('cpu').to(torch.float32)
+        labels = labels.to(all_logits.device)
         all_logps, valid_length = get_batch_logps(
             logits=all_logits, labels=labels, ld_alpha=(self.ld_alpha if not is_ref_model else None)
         )
