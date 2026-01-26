@@ -479,7 +479,8 @@ class KTransformersArguments:
     kt_backend: str = field(
         default="AMXBF16",
         metadata={
-            "help": "KT backend type: 'AMXBF16' for BF16 mode, 'AMXInt8' for INT8 quantization."
+            "help": "KT backend type: 'AMXBF16', 'AMXINT8', 'AMXINT4' for regular LoRA training. "
+            "Add '_SkipLoRA' suffix (e.g., 'AMXINT8_SkipLoRA') to skip per-expert LoRA gradient computation."
         },
     )
     kt_num_threads: int = field(
@@ -526,12 +527,31 @@ class KTransformersArguments:
             "'cpu': LoRA params on CPU (not implemented yet)."
         },
     )
+    kt_use_lora_experts: bool = field(
+        default=False,
+        metadata={
+            "help": "Use LoRA Experts instead of per-expert LoRA. "
+            "LoRA Experts are trainable MLP modules on GPU that process all tokens."
+        },
+    )
+    kt_lora_expert_num: int = field(
+        default=2,
+        metadata={"help": "Number of LoRA Experts per MoE layer."},
+    )
+    kt_lora_expert_intermediate_size: int = field(
+        default=1024,
+        metadata={"help": "Intermediate size of each LoRA Expert MLP."},
+    )
 
     def __post_init__(self):
-        if self.use_kt and self.kt_backend not in ("AMXBF16", "AMXInt8"):
+        valid_backends = (
+            "AMXBF16", "AMXINT8", "AMXINT4",
+            "AMXBF16_SkipLoRA", "AMXINT8_SkipLoRA", "AMXINT4_SkipLoRA",
+        )
+        if self.use_kt and self.kt_backend not in valid_backends:
             raise ValueError(
                 f"Invalid kt_backend: {self.kt_backend}. "
-                "Must be 'AMXBF16' or 'AMXInt8'."
+                f"Must be one of: {', '.join(valid_backends)}"
             )
         if self.kt_num_gpu_experts < 0:
             raise ValueError(
@@ -546,6 +566,14 @@ class KTransformersArguments:
             raise NotImplementedError(
                 "kt_moe_lora_device='cpu' is not implemented yet. "
                 "Please use 'gpu' (default). CPU mode will be added in a future release."
+            )
+        if self.kt_lora_expert_num < 1:
+            raise ValueError(
+                f"kt_lora_expert_num must be >= 1, got {self.kt_lora_expert_num}"
+            )
+        if self.kt_lora_expert_intermediate_size < 1:
+            raise ValueError(
+                f"kt_lora_expert_intermediate_size must be >= 1, got {self.kt_lora_expert_intermediate_size}"
             )
 
 
