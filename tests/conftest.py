@@ -149,6 +149,7 @@ def _manage_distributed_env(request: FixtureRequest, monkeypatch: MonkeyPatch) -
             devices_str = ",".join(str(i) for i in range(required))
 
         monkeypatch.setenv(env_key, devices_str)
+        monkeypatch.syspath_prepend(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
     else:  # non-distributed test
         if old_value:
             visible_devices = [v for v in old_value.split(",") if v != ""]
