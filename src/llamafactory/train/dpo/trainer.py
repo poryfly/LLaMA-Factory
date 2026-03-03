@@ -220,7 +220,7 @@ class CustomDPOTrainer(DPOTrainer):
             batch = nested_detach(batch, clone=True)  # avoid error
 
         labels = batch.pop("labels")  # dpo do not need compute loss in forward
-        all_logits: torch.Tensor = model(**batch, return_dict=True, use_cache=False).logits
+        all_logits: torch.Tensor = model(**batch, return_dict=True, use_cache=False).logits.to(torch.float32)
         all_logits = all_logits.to('cpu').to(torch.float32)
         labels = labels.to(all_logits.device)
         all_logps, valid_length = get_batch_logps(
@@ -238,6 +238,7 @@ class CustomDPOTrainer(DPOTrainer):
         else:
             chosen_logps_avg = chosen_logps / chosen_length
 
+        torch.cuda.empty_cache()
         return {
             "chosen_logps": chosen_logps,
             "rejected_logps": rejected_logps,
