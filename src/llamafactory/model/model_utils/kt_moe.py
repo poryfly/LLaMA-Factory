@@ -164,6 +164,17 @@ def get_moe_arch_config(config: "PretrainedConfig") -> MOEArchConfig:
             num_experts_per_tok=config.num_experts_per_tok,
             has_shared_experts=getattr(config, "shared_expert_intermediate_size", 0) > 0,
         )
+    elif "Qwen3_5Moe" in arch:
+        return MOEArchConfig(
+            moe_layer_attr="mlp",
+            router_attr="gate",
+            experts_attr="experts",
+            weight_names=("gate_proj", "up_proj", "down_proj"),
+            expert_num=config.text_config.num_experts,
+            intermediate_size=config.text_config.moe_intermediate_size,
+            num_experts_per_tok=config.text_config.num_experts_per_tok,
+            has_shared_experts=getattr(config.text_config, "shared_expert_intermediate_size", 0) > 0,
+        )
     elif "Mixtral" in arch:
         return MOEArchConfig(
             moe_layer_attr="block_sparse_moe",
