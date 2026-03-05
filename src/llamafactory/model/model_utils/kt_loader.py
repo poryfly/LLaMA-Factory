@@ -628,11 +628,9 @@ def get_expert_device(
         if experts is None:
             continue
 
-        if len(experts) > 0:
-            first_expert = experts[0]
-            gate_name = moe_config.weight_names[0]
-            gate_proj = getattr(first_expert, gate_name, None)
-            if gate_proj is not None:
-                return str(gate_proj.weight.device.type)
+        gate_up_name = moe_config.weight_names[0]
+        gate_proj = getattr(experts, gate_up_name, None)
+        if gate_proj is not None:
+            return str(gate_proj.device.type)
 
     return "unknown"
