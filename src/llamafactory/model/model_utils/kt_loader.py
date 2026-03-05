@@ -294,7 +294,13 @@ def move_non_experts_to_gpu(
     # Move each layer's non-expert components
     for layer_idx, layer in enumerate(model.model.layers):
         # Move attention
-        layer.self_attn.to(device)
+        if hasattr(layer, "layer_type"):
+            if layer.layer_type == "linear_attention":
+                layer.linear_attn.to(device)
+            elif layer.layer_type == "full_attention":
+                layer.self_attn.to(device)
+        else:
+            layer.self_attn.to(device)
 
         # Move layer norms
         if hasattr(layer, "input_layernorm"):

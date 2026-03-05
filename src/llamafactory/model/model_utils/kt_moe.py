@@ -146,7 +146,7 @@ def get_moe_arch_config(config: "PretrainedConfig") -> MOEArchConfig:
             moe_layer_attr="mlp",
             router_attr="gate",
             experts_attr="experts",
-            weight_names=("gate_proj", "up_proj", "down_proj"),
+            weight_names=("gate_up_proj ", "down_proj"),
             expert_num=config.n_routed_experts,
             intermediate_size=config.moe_intermediate_size,
             num_experts_per_tok=config.num_experts_per_tok,
@@ -158,7 +158,7 @@ def get_moe_arch_config(config: "PretrainedConfig") -> MOEArchConfig:
             moe_layer_attr="mlp",
             router_attr="gate",
             experts_attr="experts",
-            weight_names=("gate_proj", "up_proj", "down_proj"),
+            weight_names=("gate_up_proj", "down_proj"),
             expert_num=config.num_experts,
             intermediate_size=config.moe_intermediate_size,
             num_experts_per_tok=config.num_experts_per_tok,
@@ -169,7 +169,7 @@ def get_moe_arch_config(config: "PretrainedConfig") -> MOEArchConfig:
             moe_layer_attr="mlp",
             router_attr="gate",
             experts_attr="experts",
-            weight_names=("gate_proj", "up_proj", "down_proj"),
+            weight_names=("gate_up_proj ", "down_proj"),
             expert_num=config.text_config.num_experts,
             intermediate_size=config.text_config.moe_intermediate_size,
             num_experts_per_tok=config.text_config.num_experts_per_tok,
@@ -177,10 +177,10 @@ def get_moe_arch_config(config: "PretrainedConfig") -> MOEArchConfig:
         )
     elif "Mixtral" in arch:
         return MOEArchConfig(
-            moe_layer_attr="block_sparse_moe",
+            moe_layer_attr="mlp",
             router_attr="gate",
             experts_attr="experts",
-            weight_names=("w1", "w3", "w2"),  # gate=w1, up=w3, down=w2
+            weight_names=("gate_up_proj ", "down_proj"),  # gate=w1, up=w3, down=w2
             expert_num=config.num_local_experts,
             intermediate_size=config.intermediate_size,
             num_experts_per_tok=config.num_experts_per_tok,
@@ -231,15 +231,17 @@ def extract_moe_weights(
         [expert_num, intermediate_size/hidden_size, hidden_size/intermediate_size]
     """
     experts = getattr(moe_module, moe_config.experts_attr)
-    gate_name, up_name, down_name = moe_config.weight_names
+    gate_up_name, down_name = moe_config.weight_names
 
     gate_weights = []
     up_weights = []
     down_weights = []
 
     for expert in experts:
-        gate_weights.append(getattr(expert, gate_name).weight.data)
-        up_weights.append(getattr(expert, up_name).weight.data)
+        gate_up_proj = getattr(expert, gate_up_name)
+        gate, up = gate_up_proj.chunk(2,dim=-1)
+        gate_weights.append(gate)
+        up_weights.append(up)
         down_weights.append(getattr(expert, down_name).weight.data)
 
     # Stack to [expert_num, out_features, in_features]
@@ -270,11 +272,11 @@ def _clear_original_expert_weights(moe_module: nn.Module, moe_config: MOEArchCon
     for expert_idx, expert in enumerate(experts):
         for weight_name in moe_config.weight_names:
             proj = getattr(expert, weight_name, None)
-            if proj is not None and hasattr(proj, "weight"):
+            if proj is not None:
                 # Replace weight with an empty tensor to release memory
                 # Note: We keep the module structure but release the large tensor
-                original_device = proj.weight.device
-                original_dtype = proj.weight.dtype
+                original_device = proj.device
+                original_dtype = proj.data.dtype
                 proj.weight = nn.Parameter(
                     torch.empty(0, device=original_device, dtype=original_dtype),
                     requires_grad=False,
